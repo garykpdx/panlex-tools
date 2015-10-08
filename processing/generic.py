@@ -16,13 +16,18 @@ def get_lang_id(lang):
 
 
 
-def increment_version(filename):
+def increment_version(filename, ext=None):
     # filename of XYZ-n (optionally .ext)
     match = re.search('(.*)-(\d+)(?:.(\w+))?', filename)
     if match:
         version = int(match[2]) + 1
-        ext = match[3]
+        if not ext:
+            ext = 'txt'
+        else:
+            ext = match[3]
+            
         return '%s-%d.%s' % (match[1],version,ext)
+    
     else:
         raise ValueError('Unable to match filename pattern')
 
