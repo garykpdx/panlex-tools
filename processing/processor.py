@@ -52,10 +52,22 @@ class Entry(object):
         for idx in range(start,stop):
             self.data[idx] = ''
 
-    
-    def __repr__(self):        
+    def __str__(self):
         return '\t'.join( self.data)
 
+    
+    def __repr__(self):
+        values = [('<%s:%s>' % (lang,self.__getitem__(lang))) for lang in self.lang_cols]
+        return 'Entry(%s)' % ';'.join(values)
+
+    
+    def getEntry(self):
+        try:
+            text = '\t'.join( self.data)
+        except:
+            raise Exception('Invalid data: %s' % self.data)
+
+        return text
 
 
 

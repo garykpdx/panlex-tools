@@ -6,9 +6,28 @@ Created on Oct 1, 2015
 
 import io
 import regex as re
-
+import types
 
 lang_map = {'English':'eng-000'}
+
+
+def trace(f):
+    def wrapper(*args,**kwargs):
+        params = list(args) + list(kwargs.values())
+        params_text = ','.join([p.__repr__() for p in params])
+
+        result = f(*args,**kwargs)
+        if isinstance(result, types.GeneratorType):
+            results_list = [x for x in result]
+            results = ', '.join([r.__repr__() for r in results_list])
+            print(("%s(%s) -> [%s]\n" % (f.__name__.upper(),params_text,results)))
+            return (r for r in results_list)
+        else:
+            print("%s(%s) -> %s\n" % (f.__name__.upper(),params_text,result.__repr__()))
+            return result
+    
+    return wrapper
+
 
 
 def get_lang_id(lang):
@@ -18,14 +37,17 @@ def get_lang_id(lang):
 
 def increment_version(filename, ext=None):
     # filename of XYZ-n (optionally .ext)
-    match = re.search('(.*)-(\d+)(?:.(\w+))?', filename)
+    match = re.search('(.*)-(\d+)(?:\.(\w+))?$', filename)
     if match:
         version = int(match[2]) + 1
         if not ext:
             ext = 'txt'
         else:
-            ext = match[3]
-            
+            if match[3]:
+                ext = match[3]
+            else:
+                ext = 'txt'
+                
         return '%s-%d.%s' % (match[1],version,ext)
     
     else:
@@ -54,6 +76,31 @@ def process_outide_parens(proc):
         out.close()
         return text
 
+    return wrapper
+
+
+def process_outide_parens_with_gen(proc):
+    pat = re.compile('\([^)]*\)')
+
+    def wrapper(text):
+        if not pat.search(text):
+            return proc(text)
+        
+        out = io.StringIO()
+        
+        i = j = 0
+        for match in pat.finditer(text):
+            j = match.start()
+            for text in proc(text[i:j]):
+                out.write( text)
+            i = match.end()
+            out.write( text[j:i])
+        for text in proc(text[i:]):
+            out.write( text)
+        text = out.getvalue()
+        out.close()
+        return text
+    
     return wrapper
 
 
