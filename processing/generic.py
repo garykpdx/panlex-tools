@@ -79,6 +79,31 @@ def process_outide_parens(proc):
     return wrapper
 
 
+
+def process_method_outside_parens(func):
+    pat = re.compile('\([^)]*\)')
+
+    def wrapper(self, text):
+        if not pat.search(text):
+            return func(self, text)
+        
+        out = io.StringIO()
+        
+        i = j = 0
+        for match in pat.finditer(text):
+            j = match.start()
+            out.write( func(self, text[i:j]))
+            i = match.end()
+            out.write( text[j:i])
+            
+        out.write( func(self, text[i:]))
+        text = out.getvalue()
+        out.close()
+        return text
+    
+    return wrapper
+
+
 def process_outide_parens_with_gen(proc):
     pat = re.compile('\([^)]*\)')
 
@@ -121,6 +146,17 @@ def process_synonyms(proc):
 
 
 
+def process_method_synonyms(proc):
+    # s = '‣'
+    def wrapper(self,text):
+        fields = text.split('‣')
+        for i in range(len(fields)):
+            fields[i] = proc(self, fields[i])
+        return '‣'.join( fields)
+    return wrapper
+
+
+
 def convert_separator(text, sep='‣'):
     return re.sub(', ', '‣', text)
 
@@ -128,5 +164,22 @@ def convert_separator(text, sep='‣'):
 
 def remove_final_punct(text):
     return re.sub('((?<!\.\.)\.$|(?:[,/]+)$', '', text)
+
+
+
+def append_synonym(text, elem):
+    fields = text.split('\s*‣\s*')
+    
+    if len(fields) == 0:
+        # nothing to append to
+        return elem
+    else:
+        if elem not in fields:
+            # append to list
+            return '%s‣%s' % (text,elem)
+        else:
+            # already in list, don't append
+            return text
+        
 
 

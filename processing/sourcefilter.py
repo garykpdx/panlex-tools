@@ -91,11 +91,6 @@ class TextStripFilter(SourceProcesor):
         return
 
     
-    def remove_final_punctuation(self, text):
-        result = re.sub('\.$', '', text)
-        return result
-
-    
     def strip_extra(self, text):
         meanings = text.split('⁋')
         for i,meaning in enumerate(meanings):
@@ -103,7 +98,7 @@ class TextStripFilter(SourceProcesor):
             
             for j,syn in enumerate(synonyms):
                 text = syn.strip(self.strip_pattern)
-                synonyms[j] = self.remove_final_punctuation(text)
+                synonyms[j] = text
             meanings[i] = '‣'.join(synonyms)
             
         return '⁋'.join(meanings)
@@ -113,14 +108,17 @@ class TextStripFilter(SourceProcesor):
         self.parent.run(entry)
 
         for lang in self.columns:
-            text = self.strip_extra(entry[lang][0])
-            entry[lang][0] = text
+            fields = entry[lang]
+            text = self.strip_extra(fields[0])
+            fields[0] = text
+            entry[lang] = fields
         return self
 
 
 
 class PosNormalizeFilter(SourceProcesor):
     def __init__(self,mapping={}):
+        super(self.__class__, self).__init__()
         self.mapping = mapping
 
     
@@ -132,28 +130,30 @@ class PosNormalizeFilter(SourceProcesor):
         self.parent.run(entry)
         
         for lang in self.columns:
-            text = self.normalize(entry[lang][1])
-            print('normalizing: %s' % text)
-            entry[lang][1] = text
+            fields = entry[lang]
+            text = self.normalize(fields[1])
+            entry[lang] = fields
             
         return self
                                                     
 
 
 class DelimiterFilter(SourceProcesor):
-    def __init__(self, pattern_to_replace='[,/]\s*'):
+    def __init__(self, pattern_to_replace='[,\uFF0C]\s*'):
         super(self.__class__, self).__init__()
         self.delim_pat = pattern_to_replace
 
 
     @handle_outside_parens
     def replace_delim(self, text):
-        return re.sub(self.delim_pat, '‣', text)
+        result = re.sub(self.delim_pat, '‣', text)
+        result = re.sub('\s*;\s*(?=\w+)', '⁋', result)
+        return result
     
     
     def run(self, entry):
         self.parent.run(entry)
-                  
+        
         for lang in self.columns:
             fields = entry[lang]
             fields[0] = self.replace_delim( fields[0])
@@ -161,3 +161,35 @@ class DelimiterFilter(SourceProcesor):
 
         return self
         
+
+class PunctFilter(SourceProcesor):
+    def __init__(self, remove_re='^[-,. ]*$'):
+        self.remove_re = remove_re
+    
+
+    @handle_synonyms
+    def normalize_epplisis(self, text):
+        return re.sub('\s*\.{2,}\s*', ' … ', text)
+
+    
+    @handle_synonyms
+    def remove_final_punctuation(self, text):
+        result = re.sub('\.+\s*$', '', text)
+        result = re.sub('…\s*$', '', result)
+        return result
+
+    
+    def run(self, entry):
+        self.parent.run(entry)
+        
+        for lang in self.columns:
+            fields = entry[lang]
+            text = fields[0]
+
+            text = self.normalize_epplisis(text)
+            text = self.remove_final_punctuation(text)
+            fields[0] = text
+            entry[lang] = fields
+        
+        return self
+    

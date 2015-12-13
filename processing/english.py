@@ -5,10 +5,10 @@ Created on Oct 1, 2015
 '''
 
 import regex as re
-from processing import process_synonyms
+from processing.generic import *
 from processing import SourceProcesor
 from processing import handle_synonyms
-
+import tag_phrase
 
 def extract_inchoative(text):
     return re.sub('\b(make|cause to)\s+(.*)', r'\1')
@@ -20,11 +20,35 @@ def extract_article(text):
 
 
 
+class ArticleFilter(SourceProcesor):
+    def __init__(self):
+        super(self.__class__, self).__init__()
+        self.columns = ('eng',)
+
+    @handle_synonyms
+    def remove_article(self, text):
+        return re.sub('^\s*(?:a|an|the)\s+(.*)$', r'\1', text)
+
+    
+    def run(self, entry):
+        self.parent.run(entry)
+
+        for lang in self.columns:
+            fields = entry[lang]
+            fields[0] = self.remove_article( fields[0])
+            entry[lang] = fields
+            
+        return
+
+
+                                                                    
 class InfinitiveFilter(SourceProcesor):
-    def __init__(self, pat='^to (.*)$'):
+    def __init__(self, pat='^to\M(?: be\s+)?(.*)$'):
         super(self.__class__, self).__init__()
         self.inf_pat = re.compile(pat)
+        self.columns = ('eng',)
 
+    
     @handle_synonyms
     def replace_infinitive(self, text):
         match = self.inf_pat.search(text)
@@ -39,7 +63,34 @@ class InfinitiveFilter(SourceProcesor):
         
         for lang in self.columns:
             fields = entry[lang]
+            start = fields
             fields[0] = self.replace_infinitive( fields[0])
+            entry[lang] = fields
+        
+        return
+
+
+
+class InchoativeFilter(SourceProcesor):
+    def __init__(self, pat='^to(?: be\s+)?(.*)$'):
+        super(self.__class__, self).__init__()
+        self.inf_pat = re.compile(pat)
+        self.columns = ('eng',)
+        self.tagger = tag_phrase.get_tagger()
+
+    
+    #@handle_synonyms
+    #def remove_inchoative(self, text):
+    #    if tag_phrase
+    #    return text
+    
+    
+    def run(self, entry):
+        self.parent.run(entry)
+        
+        for lang in self.columns:
+            fields = entry[lang]
+            fields[0] = self.remove_inchoative( fields[0])
             entry[lang] = fields
 
         return
@@ -71,3 +122,27 @@ class AuxFilter(SourceProcesor):
                 
         return
             
+
+class OrSplitFilter(SourceProcesor):
+    def __init__(self):
+        super(self.__class__, self).__init__()
+
+
+    @process_method_outside_parens
+    def split_on_or(self, text):
+        if len(text.split()) == 3:
+            result = re.sub('(?:,)? or ', '‣', text)
+            return result
+        else:
+            return text
+
+    
+    def run(self, entry):
+        self.parent.run(entry)
+
+        for lang in self.columns:
+            fields = entry[lang]
+            fields[0] = self.split_on_or( fields[0])
+            entry[lang] = fields
+            
+        return
